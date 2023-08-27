@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-import models
+from app.models import models
 
 
 def get_muscle_groups_by_id(db: Session, muscle_group_id: int):

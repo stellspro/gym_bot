@@ -1,7 +1,7 @@
 from aiogram import executor
-from bot import bot
+from app.bot import bot
 import logging
-from handlers import dp, cmd_start
+from app.handlers.handlers import dp, cmd_start
 
 
 logging.basicConfig(level=logging.INFO)

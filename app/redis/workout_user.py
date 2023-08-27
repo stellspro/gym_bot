@@ -1,4 +1,4 @@
-from redis_con import DataConn
+from .redis_con import DataConn
 from utils import port_redis, host_redis, psw_redis
 
 

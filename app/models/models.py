@@ -1,6 +1,6 @@
 from sqlalchemy import Column, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import relationship
-from database import Base, engine
+from app.database.database import Base, engine
 
 workout_plan_exercise = Table('workout_plan_exercise',
                               Base.metadata,

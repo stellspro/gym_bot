@@ -1,13 +1,12 @@
 from aiogram import types, Dispatcher
 from aiogram.dispatcher.filters import Text
-from database import db
-import crud
-import workout_user
-import callbacks
-from bot import bot
+from ..database.database import db
+from app.database import crud
+from ..redis import workout_user
+from app.handlers import callbacks
+from app.bot import bot
 
 dp = Dispatcher(bot)
-
 
 
 @dp.message_handler(commands=["start"])
@@ -17,6 +16,7 @@ async def cmd_start(message: types.Message):
     buttons = ['План тренировки', 'Упражнения', 'Мои тренировки']
     keyboard.add(*buttons)
     await message.answer("Hello!", reply_markup=keyboard)
+
 
 @dp.message_handler(Text(equals='Мои тренировки'))
 async def workout_plan_menu(message: types.Message):
