@@ -1,5 +1,5 @@
 from aiogram import executor
-from bot2 import bot
+from bot import bot
 import logging
 from handlers import dp, cmd_start
 
