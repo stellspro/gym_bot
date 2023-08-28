@@ -5,6 +5,7 @@ from app.database import crud
 from ..redis import workout_user
 from app.handlers import callbacks
 from app.bot import bot
+from ..redis.workout_user import UserPlans, MarkPlans, MarkExercise
 
 dp = Dispatcher(bot)
 
@@ -22,9 +23,8 @@ async def cmd_start(message: types.Message):
 async def workout_plan_menu(message: types.Message):
     """Обработка кнопки 'Мои тренировки'
     Выводит список категорий тренировочных планов пользователя"""
-    plans = workout_user.get_workout_plan_types_in_user_plans(message.from_user.id)
-
-    print(plans)
+    user_plans = UserPlans()
+    plans = user_plans.get_all(message.from_user.id)
     keyboard = types.InlineKeyboardMarkup(row_width=2)
 
     if plans:
@@ -49,8 +49,8 @@ async def workout_plan_menu(message: types.Message):
     Выводит список категорий тренировочных планов"""
     keyboard = types.InlineKeyboardMarkup(row_width=2)
     workout_types = crud.get_all_workout_plans_types(db)
-    print(workout_types)
-    w_plans = workout_user.get_workout_plan_types_in_user_plans(message.from_user.id)
+    user_plans = UserPlans()
+    w_plans = user_plans.get_all(message.from_user.id)
 
     for workout_type in workout_types:
         button = types.InlineKeyboardButton(text=f'{workout_type}',
@@ -75,8 +75,8 @@ async def workout_plan_types(call: types.CallbackQuery, callback_data: dict):
     workout_plan_id = callback_data['types']
     w_plans = crud.get_workout_plans_by_type(db, workout_plan_id)
     keyboard = types.InlineKeyboardMarkup(row_width=2)
-    check_mark = workout_user.get_workout_plans_with_mark(call.from_user.id)
-    print(check_mark)
+    mark_plans = MarkPlans()
+    check_mark = mark_plans.get_all(call.from_user.id)
 
     for workout_plan in w_plans:
         if workout_plan.id in check_mark:
@@ -84,7 +84,7 @@ async def workout_plan_types(call: types.CallbackQuery, callback_data: dict):
                                                 callback_data=callbacks.callback_workout_plan_by_type.new(
                                                     plan=f'{workout_plan.id}'))
             button_delete_mark = types.InlineKeyboardButton(text='  ☑️  ',
-                                                            callback_data=callbacks.callback_add_workout_plan.new(
+                                                            callback_data=callbacks.callback_del_workout_plan.new(
                                                                 wp=workout_plan.id))
             keyboard.add(button, button_delete_mark)
         else:
@@ -104,8 +104,10 @@ async def workout_plan_types(call: types.CallbackQuery, callback_data: dict):
 async def add_mark_workout_plan(call: types.CallbackQuery, callback_data: dict):
     """Добавление отметки 'выполнено' на тренировочный план"""
     workout_plan_id = callback_data['wp']
-    if workout_plan_id not in workout_user.get_workout_plans_with_mark(call.from_user.id):
-        workout_user.add_mark_workout_plan(call.from_user.id, workout_plan_id)
+    mark_plans = MarkPlans()
+
+    if workout_plan_id not in mark_plans.get_all(call.from_user.id):
+        mark_plans.add(call.from_user.id, workout_plan_id)
         await call.answer('Отмечено')
     else:
         await call.answer('План уже отмечен')
@@ -115,7 +117,8 @@ async def add_mark_workout_plan(call: types.CallbackQuery, callback_data: dict):
 async def del_mark_workout_plan(call: types.CallbackQuery, callback_data: dict):
     """Удаление отметки 'выполнено' на тренировочный план"""
     workout_plan_id = callback_data['wp']
-    workout_user.del_mark_workout_plan(call.from_user.id, workout_plan_id)
+    mark_plans = MarkPlans()
+    mark_plans.delete(call.from_user.id, workout_plan_id)
     await call.answer('Удалено')
 
 
@@ -123,8 +126,9 @@ async def del_mark_workout_plan(call: types.CallbackQuery, callback_data: dict):
 async def add_workout_plan(call: types.CallbackQuery, callback_data: dict):
     """Добавление тренировочного плана в закладки"""
     workout_plan_id = callback_data['wt']
-    if workout_plan_id not in workout_user.get_workout_plan_types_in_user_plans(call.from_user.id):
-        workout_user.add_workout_plan_type_in_user_plans(call.from_user.id, workout_plan_id)
+    user_plans = UserPlans()
+    if workout_plan_id not in user_plans.get_all(call.from_user.id):
+        user_plans.add(call.from_user.id, workout_plan_id)
         await call.answer('Добавлено')
     else:
         await call.answer('План уже добавлен в избранное')
@@ -134,7 +138,8 @@ async def add_workout_plan(call: types.CallbackQuery, callback_data: dict):
 async def delete_workout_plan(call: types.CallbackQuery, callback_data: dict):
     """Удаление тренировочного плана из закладок"""
     workout_plan_id = callback_data['wt']
-    workout_user.delete_workout_plan_type_in_user_plans(call.from_user.id, workout_plan_id)
+    user_plans = UserPlans()
+    user_plans.delete(call.from_user.id, workout_plan_id)
     await call.answer('Удалено')
 
 
@@ -144,10 +149,10 @@ async def workout_plans(call: types.CallbackQuery, callback_data: dict):
     workout_plan_id = callback_data['plan']
     workout_plan = crud.get_workout_by_id(db, workout_plan_id)
     exercise_in_workout_plan = crud.get_exercises_by_workout_plan_id(db, workout_plan_id)
-    print(exercise_in_workout_plan)
     reps = crud.get_reps_by_workout_plan_id(db, workout_plan_id)
-    print(reps)
-    exercises_with_mark = workout_user.get_exercises_with_mark(call.from_user.id, workout_plan_id)
+    mark_exercise = MarkExercise()
+    exercises_with_mark = mark_exercise.get_all(call.from_user.id, workout_plan_id)
+
     keyboard = types.InlineKeyboardMarkup(row_width=2)
     for count, exercise in enumerate(exercise_in_workout_plan):
         if exercise.id in exercises_with_mark:
@@ -157,7 +162,7 @@ async def workout_plans(call: types.CallbackQuery, callback_data: dict):
             button_delete_mark = types.InlineKeyboardButton(text='  ☑️  ',
                                                             callback_data=callbacks.callback_del_exercise.new(
                                                                 wp=workout_plan.id,
-                                                                                          ex=exercise.id))
+                                                                ex=exercise.id))
             keyboard.add(button, button_delete_mark)
         else:
             button = types.InlineKeyboardButton(text=f'{exercise} - {reps[count].reps}',
@@ -177,8 +182,9 @@ async def add_mark_exercise(call: types.CallbackQuery, callback_data: dict):
     """Добавление отметки 'выполнено' на тренировочный план"""
     workout_plan_id = callback_data['wp']
     exercise_id = callback_data['ex']
-    if exercise_id not in workout_user.get_exercises_with_mark(call.from_user.id, workout_plan_id):
-        workout_user.add_mark_exercise(call.from_user.id, workout_plan_id, exercise_id)
+    mark_exercise = MarkExercise()
+    if exercise_id not in mark_exercise.get_all(call.from_user.id, workout_plan_id):
+        mark_exercise.add(call.from_user.id, workout_plan_id, exercise_id)
         await call.answer('Отмечено')
     else:
         await call.answer('Упражнение уже отмечено')
@@ -189,7 +195,8 @@ async def del_mark_exercise(call: types.CallbackQuery, callback_data: dict):
     """Удаление отметки 'выполнено' на тренировочный план"""
     workout_plan_id = callback_data['wp']
     exercise_id = callback_data['ex']
-    workout_user.del_mark_exercise(call.from_user.id, workout_plan_id, exercise_id)
+    mark_exercise = MarkExercise()
+    mark_exercise.delete(call.from_user.id, workout_plan_id, exercise_id)
     await call.answer('Удалено')
 
 
@@ -225,7 +232,6 @@ async def muscle_group_menu(call: types.CallbackQuery, callback_data: dict):
 
 @dp.callback_query_handler(callbacks.callback_exercise_by_muscle_groups.filter())
 async def exercise_menu(call: types.CallbackQuery, callback_data: dict):
-    # keyboard = types.InlineKeyboardMarkup(row_width=1)
     """Выводит описание упражнения"""
     exercise = callback_data['exercise']
     if exercise:
@@ -235,6 +241,3 @@ async def exercise_menu(call: types.CallbackQuery, callback_data: dict):
             await call.message.answer_animation(an)
         await call.message.answer(f'{exercise.description}')
         await call.answer()
-
-
-
