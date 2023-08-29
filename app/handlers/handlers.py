@@ -2,7 +2,6 @@ from aiogram import types, Dispatcher
 from aiogram.dispatcher.filters import Text
 from ..database.database import db
 from app.database import crud
-from ..redis import workout_user
 from app.handlers import callbacks
 from app.bot import bot
 from ..redis.workout_user import UserPlans, MarkPlans, MarkExercise
@@ -237,7 +236,8 @@ async def exercise_menu(call: types.CallbackQuery, callback_data: dict):
     if exercise:
         exercise = crud.get_exercise_by_name(db, exercise)
         await call.message.answer(f'{exercise}')
-        with open(f'images/{exercise.image_slug}', 'rb') as an:
+        with open(f'app/images/{exercise.image_slug}', 'rb') as an:
             await call.message.answer_animation(an)
         await call.message.answer(f'{exercise.description}')
         await call.answer()
+
