@@ -1,10 +1,10 @@
 from aiogram import types, Dispatcher
 from aiogram.dispatcher.filters import Text
-from ..database.database import db
+from app.database.database import db
 from app.database import crud
 from app.handlers import callbacks
 from app.bot import bot
-from ..redis.workout_user import UserPlans, MarkPlans, MarkExercise
+from app.redis.workout_user import UserPlans, MarkPlans, MarkExercise
 
 dp = Dispatcher(bot)
 
