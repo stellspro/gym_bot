@@ -23,12 +23,13 @@ async def workout_plan_menu(message: types.Message):
     """Обработка кнопки 'Мои тренировки'
     Выводит список категорий тренировочных планов пользователя"""
     user_plans = UserPlans()
+    workout_plan_type = crud.WorkoutPlanType(db)
     plans = user_plans.get_all(message.from_user.id)
     keyboard = types.InlineKeyboardMarkup(row_width=2)
 
     if plans:
         for plan_id in plans:
-            plan = crud.get_workout_plan_type_by_id(db, plan_id)
+            plan = workout_plan_type.get(plan_id)
             button = types.InlineKeyboardButton(text=f'{plan.name}',
                                                 callback_data=callbacks.callback_all_workout_types.new(
                                                     types=f'{plan.id}'))
@@ -47,7 +48,9 @@ async def workout_plan_menu(message: types.Message):
     """Обработка кнопки 'План тренировки'
     Выводит список категорий тренировочных планов"""
     keyboard = types.InlineKeyboardMarkup(row_width=2)
-    workout_types = crud.get_all_workout_plans_types(db)
+    workout_plan_type = crud.WorkoutPlanType(db)
+    workout_types = workout_plan_type.all()
+
     user_plans = UserPlans()
     w_plans = user_plans.get_all(message.from_user.id)
 
@@ -72,12 +75,14 @@ async def workout_plan_menu(message: types.Message):
 async def workout_plan_types(call: types.CallbackQuery, callback_data: dict):
     """Выводит тренировочные планы в категории"""
     workout_plan_id = callback_data['types']
-    w_plans = crud.get_workout_plans_by_type(db, workout_plan_id)
+    plans = crud.WorkoutPlanType(db)
+    w_plans = plans.get(workout_plan_id)
+
     keyboard = types.InlineKeyboardMarkup(row_width=2)
     mark_plans = MarkPlans()
     check_mark = mark_plans.get_all(call.from_user.id)
 
-    for workout_plan in w_plans:
+    for workout_plan in w_plans.workout_plans:
         if workout_plan.id in check_mark:
             button = types.InlineKeyboardButton(text=f'{workout_plan}',
                                                 callback_data=callbacks.callback_workout_plan_by_type.new(
@@ -146,16 +151,20 @@ async def delete_workout_plan(call: types.CallbackQuery, callback_data: dict):
 async def workout_plans(call: types.CallbackQuery, callback_data: dict):
     """Выводит список упражнений в плане тренировки"""
     workout_plan_id = callback_data['plan']
-    workout_plan = crud.get_workout_by_id(db, workout_plan_id)
-    exercise_in_workout_plan = crud.get_exercises_by_workout_plan_id(db, workout_plan_id)
-    reps = crud.get_reps_by_workout_plan_id(db, workout_plan_id)
+    plan = crud.WorkoutPlan(db)
+    workout_plan = plan.get(workout_plan_id)
+    muscle_group = crud.MuscleGroup(db)
+    muscle_group_exercise = muscle_group.get(workout_plan_id)
+    exercise_in_workout_plan = muscle_group_exercise.exercises
+    reps = crud.Reps(db)
+    w_reps = reps.get(workout_plan_id)
     mark_exercise = MarkExercise()
     exercises_with_mark = mark_exercise.get_all(call.from_user.id, workout_plan_id)
 
     keyboard = types.InlineKeyboardMarkup(row_width=2)
     for count, exercise in enumerate(exercise_in_workout_plan):
         if exercise.id in exercises_with_mark:
-            button = types.InlineKeyboardButton(text=f'{exercise} - {reps[count].reps}',
+            button = types.InlineKeyboardButton(text=f'{exercise} - {w_reps[count].reps}',
                                                 callback_data=callbacks.callback_exercise_by_muscle_groups.new(
                                                     exercise=f'{exercise}'))
             button_delete_mark = types.InlineKeyboardButton(text='  ☑️  ',
@@ -164,7 +173,7 @@ async def workout_plans(call: types.CallbackQuery, callback_data: dict):
                                                                 ex=exercise.id))
             keyboard.add(button, button_delete_mark)
         else:
-            button = types.InlineKeyboardButton(text=f'{exercise} - {reps[count].reps}',
+            button = types.InlineKeyboardButton(text=f'{exercise} - {w_reps[count].reps}',
                                                 callback_data=callbacks.callback_exercise_by_muscle_groups.new(
                                                     exercise=f'{exercise}'))
             button_add_mark = types.InlineKeyboardButton(text='  🔘  ',
@@ -203,7 +212,8 @@ async def del_mark_exercise(call: types.CallbackQuery, callback_data: dict):
 async def exercises_menu(message: types.Message):
     """Выводит типы мышечных групп"""
     keyboard = types.InlineKeyboardMarkup(row_width=1)
-    groups = crud.get_muscle_groups(db)
+    muscle_group = crud.MuscleGroup(db)
+    groups = muscle_group.all()
     for muscle in groups:
         button = types.InlineKeyboardButton(text=f'{muscle}',
                                             callback_data=callbacks.callback_all_muscle_groups.new(group=f'{muscle}'))
@@ -217,8 +227,10 @@ async def muscle_group_menu(call: types.CallbackQuery, callback_data: dict):
     """Выводит упражнения на каждую мышечную группу"""
     keyboard = types.InlineKeyboardMarkup(row_width=1)
     muscle_group = callback_data['group']
+    muscle_group_exercises = crud.MuscleGroup(db)
+    exercise = muscle_group_exercises.get_by_name(muscle_group)
     if muscle_group:
-        exercises = crud.get_exercises_by_muscle_group_name(db, muscle_group)
+        exercises = exercise.exercises
         for exercise in exercises:
             button = types.InlineKeyboardButton(text=f'{exercise} ',
                                                 callback_data=callbacks.callback_exercise_by_muscle_groups.new(
@@ -232,9 +244,11 @@ async def muscle_group_menu(call: types.CallbackQuery, callback_data: dict):
 @dp.callback_query_handler(callbacks.callback_exercise_by_muscle_groups.filter())
 async def exercise_menu(call: types.CallbackQuery, callback_data: dict):
     """Выводит описание упражнения"""
-    exercise = callback_data['exercise']
-    if exercise:
-        exercise = crud.get_exercise_by_name(db, exercise)
+    call_exercise = callback_data['exercise']
+    exercise = crud.Exercise(db)
+
+    if call_exercise:
+        exercise = exercise.get_by_name(call_exercise)
         await call.message.answer(f'{exercise}')
         with open(f'app/images/{exercise.image_slug}', 'rb') as an:
             await call.message.answer_animation(an)
