@@ -1,4 +1,4 @@
-from .base import BaseRedisRepository
+from app.redis.base import BaseRedisRepository
 
 
 class UserPlans(BaseRedisRepository):

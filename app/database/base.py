@@ -24,4 +24,3 @@ class BaseRepository:
         stmt = select(self.model)
         entities = [a for a in self.session.scalars(stmt)]
         return entities
-
