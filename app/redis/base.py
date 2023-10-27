@@ -17,10 +17,12 @@ class BaseRedisRepository:
             self,
             user_id: int,
             entity: int,
-            plan: int = None
+            plan: int = None,
     ):
         with DataConn(host_redis, port_redis, psw_redis) as redis_client:
-            redis_client.rpush(f'{user_id}{self.directory}{plan if plan else ""}', entity)
+            redis_client.rpush(
+                f'{user_id}{self.directory}{plan if plan else ""}', entity
+            )
             redis_client.expire(user_id, 86400)
 
     def delete(

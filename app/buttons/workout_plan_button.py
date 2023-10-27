@@ -42,5 +42,3 @@ def get_workout_plan_type_button(plans: List, check_mark: List):
                                                              wp=workout_plan.id))
             keyboard.add(button, button_add_mark)
     return keyboard
-
-
